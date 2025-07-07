@@ -1,0 +1,39 @@
+# Python Virtual Environments & Caches
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Node Dependencies & Build Output
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Large Model Weights (>100MB)
+*.pt
+**/*.pt
+!fire-detection-system/backend/yolov5s_best.pt
+!fire-detection-system/backend/yolov8n.pt
+!fire-detection-system/backend/yolov8s-worldv2.pt
+!fire-detection-system/backend/yolov8m.pt
+!fire-detection-system/backend/models/fire_best.pt
+
+# Training Logs, Runs & Generated Event Media
+runs/
+**/runs/
+events/media/
+**/events/media/
+
+# Heavy Datasets & External Cloned Repos
+D-FIRE/
+midday-main/
+yolov5-fire-detection-main/
+
+# OS & Environment Files
+.DS_Store
+**/.DS_Store
+.env
+.env.local
