@@ -58,3 +58,69 @@ def fire_visual_signature(image_np, box):
         np.array([160, 70, 70], dtype="uint8"),
         np.array([180, 255, 255], dtype="uint8"),
     )
+
+    pixel_count = max(1, roi.shape[0] * roi.shape[1])
+    hot_ratio = cv2.countNonZero(hot_mask) / pixel_count
+    body_ratio = cv2.countNonZero(body_mask) / pixel_count
+    red_ratio = cv2.countNonZero(red_mask_1 | red_mask_2) / pixel_count
+    brightness_std = float(np.std(gray_roi))
+    area_ratio = pixel_count / (width * height)
+
+    looks_like_flame = (
+        area_ratio < 0.45
+        and body_ratio >= 0.008
+        and (hot_ratio >= 0.0005 or brightness_std >= 42)
+        and not (red_ratio >= 0.65 and hot_ratio < 0.002)
+    )
+
+    return looks_like_flame, {
+        "hot_ratio": round(hot_ratio, 4),
+        "body_ratio": round(body_ratio, 4),
+        "red_ratio": round(red_ratio, 4),
+        "brightness_std": round(brightness_std, 2),
+        "area_ratio": round(area_ratio, 4),
+    }
+
+
+def get_camera_health(image_np):
+    global last_frame_hash, same_frame_count, last_frame_received_at
+
+    gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+    brightness = float(np.mean(gray))
+    sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    small = cv2.resize(gray, (32, 24), interpolation=cv2.INTER_AREA)
+    frame_hash = small.tobytes()
+
+    if frame_hash == last_frame_hash:
+        same_frame_count += 1
+    else:
+        same_frame_count = 0
+
+    last_frame_hash = frame_hash
+    last_frame_received_at = time.time()
+
+    issues = []
+    if brightness < 28:
+        issues.append("too_dark")
+    if brightness > 245:
+        issues.append("overexposed")
+    if sharpness < 35:
+        issues.append("blurry")
+    if same_frame_count >= 8:
+        issues.append("possible_frozen_frame")
+
+    status = "ok"
+    if issues:
+        status = "warning"
+    if "too_dark" in issues or "possible_frozen_frame" in issues:
+        status = "problem"
+
+    return {
+        "status": status,
+        "issues": issues,
+        "brightness": round(brightness, 2),
+        "sharpness": round(sharpness, 2),
+        "same_frame_count": same_frame_count,
+        "last_frame_age_seconds": 0,
+    }
