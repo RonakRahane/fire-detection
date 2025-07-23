@@ -73,3 +73,83 @@ def build_gif_preview_from_video(event):
         event["clip_preview_url"] = event["gif_url"]
         return True
 
+    capture = cv2.VideoCapture(str(clip_path))
+    frames = []
+    index = 0
+
+    while capture.isOpened() and len(frames) < 16:
+        ok, frame = capture.read()
+        if not ok:
+            break
+        if index % 2 == 0:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            gif_frame = Image.fromarray(rgb_frame).resize(
+                (480, 360), Image.Resampling.LANCZOS
+            )
+            frames.append(gif_frame)
+        index += 1
+
+    capture.release()
+
+    if not frames:
+        return False
+
+    frames[0].save(
+        gif_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=250,
+        loop=0,
+        optimize=True,
+    )
+    event["gif_url"] = f"/media/{gif_name}"
+    event["clip_preview_url"] = event["gif_url"]
+    return True
+
+
+def hydrate_event_media(events):
+    changed = False
+    for event in events:
+        changed = build_gif_preview_from_video(event) or changed
+    if changed:
+        save_events(events)
+    return events
+
+
+def save_gif_capture(event_id, fallback_frame=None):
+    frames = list(recent_frames)
+    if not frames and fallback_frame is not None:
+        frames = [(time.time(), fallback_frame)]
+    if not frames:
+        return {"gif_url": None, "clip_preview_url": None}
+
+    gif_name = f"{event_id}.gif"
+    gif_path = MEDIA_DIR / gif_name
+    first_frame = frames[0][1]
+    height, width = first_frame.shape[:2]
+
+    gif_frames = []
+    for index, (_, frame) in enumerate(frames):
+        if frame.shape[:2] != (height, width):
+            frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+
+        if index % 2 == 0:
+            gif_frame = Image.fromarray(frame).resize(
+                (480, 360), Image.Resampling.LANCZOS
+            )
+            gif_frames.append(gif_frame)
+
+    if gif_frames:
+        gif_frames[0].save(
+            gif_path,
+            save_all=True,
+            append_images=gif_frames[1:],
+            duration=250,
+            loop=0,
+            optimize=True,
+        )
+
+    gif_url = f"/media/{gif_name}" if gif_path.exists() else None
+    return {
+        "gif_url": gif_url,
+        "clip_preview_url": gif_url,
