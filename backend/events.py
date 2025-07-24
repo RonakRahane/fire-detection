@@ -153,3 +153,70 @@ def save_gif_capture(event_id, fallback_frame=None):
     return {
         "gif_url": gif_url,
         "clip_preview_url": gif_url,
+    }
+
+
+def determine_alert(detections, color_heuristic_detected):
+    alert_detections = [d for d in detections if d.get("alert_eligible")]
+    if not alert_detections:
+        rejected_fire = any(
+            d.get("class") in FIRE_CLASSES and not d.get("alert_eligible")
+            for d in detections
+        )
+        if rejected_fire or color_heuristic_detected:
+            return "suspicious", "Fire-like colors detected but rejected"
+        return "safe", "No fire detected"
+
+    best = max(alert_detections, key=lambda d: d.get("confidence", 0))
+    cls_name = best.get("class")
+    confidence = best.get("confidence", 0)
+
+    if cls_name == "smoke":
+        return "warning", f"Smoke detected at {round(confidence * 100)}%"
+    if confidence >= 0.75:
+        return "critical", f"Fire detected at {round(confidence * 100)}%"
+    return "danger", f"Possible fire detected at {round(confidence * 100)}%"
+
+
+def record_event(image_np, detections, alert_level, alert_summary, camera_health, using_custom_fire_model):
+    global last_event_at
+
+    now = time.time()
+    if now - last_event_at < EVENT_COOLDOWN_SECONDS:
+        return None
+
+    event_id = uuid.uuid4().hex[:12]
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    snapshot_name = f"{event_id}.jpg"
+    snapshot_path = MEDIA_DIR / snapshot_name
+    Image.fromarray(image_np).save(snapshot_path, quality=92)
+
+    gif_media = save_gif_capture(event_id, image_np)
+
+    alert_detections = [d for d in detections if d.get("alert_eligible")]
+    best_detection = max(
+        alert_detections, key=lambda d: d.get("confidence", 0), default=None
+    )
+
+    event = {
+        "id": event_id,
+        "timestamp": timestamp,
+        "alert_level": alert_level,
+        "summary": alert_summary,
+        "snapshot_url": f"/media/{snapshot_name}",
+        "gif_url": gif_media.get("gif_url"),
+        "clip_preview_url": gif_media.get("clip_preview_url"),
+        "best_detection": best_detection,
+        "detections": detections,
+        "camera_health": camera_health,
+        "model": "custom_fire_best.pt" if using_custom_fire_model else "yolov8s-worldv2 fallback",
+    }
+
+    with event_lock:
+        events = load_events()
+        events.insert(0, event)
+        save_events(events[:100])
+        last_event_at = now
+
+    return event
