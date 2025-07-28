@@ -63,3 +63,63 @@ else:
     model.set_classes([
         "person", "face", "spectacles", "glasses", "sunglasses",
         "pencil", "pen", "book", "notebook",
+        "mouse", "computer mouse", "cup", "bottle",
+        "fire", "flame", "smoke",
+    ])
+    using_custom_fire_model = False
+
+
+@app.post("/detect")
+async def detect(file: UploadFile = File(...)):
+    is_live_capture = file.filename == "capture.jpg"
+
+    contents = await file.read()
+    pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
+    image_np = np.array(pil_image)
+
+    camera_health = get_camera_health(image_np)
+    if is_live_capture:
+        remember_frame(image_np)
+
+    predict_conf = 0.15 if using_custom_fire_model else 0.30
+    results = model.predict(
+        pil_image,
+        conf=predict_conf,
+        iou=0.45,
+        agnostic_nms=True,
+        imgsz=640,
+    )
+
+    detections = []
+    model_fire_detected = False
+
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            cls_id = int(box.cls[0])
+            cls_name = model.names[cls_id]
+            conf = float(box.conf[0])
+            xyxy = box.xyxy[0].tolist()
+            alert_threshold = ALERT_CONFIDENCE_BY_CLASS.get(cls_name, 1.01)
+            visual_signature = None
+            verified_fire_like = True
+
+            if using_custom_fire_model and cls_name in {"fire", "flame"}:
+                verified_fire_like, visual_signature = fire_visual_signature(image_np, xyxy)
+
+            alert_eligible = (
+                cls_name in FIRE_CLASSES
+                and conf >= alert_threshold
+                and verified_fire_like
+            )
+
+            detections.append({
+                "class": cls_name,
+                "confidence": conf,
+                "box": xyxy,
+                "source": "custom_model" if using_custom_fire_model else "yolo_world",
+                "alert_eligible": alert_eligible,
+                "verified_fire_like": verified_fire_like,
+                "visual_signature": visual_signature,
+            })
+
