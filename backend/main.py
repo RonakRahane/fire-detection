@@ -123,3 +123,63 @@ async def detect(file: UploadFile = File(...)):
                 "visual_signature": visual_signature,
             })
 
+            if alert_eligible:
+                model_fire_detected = True
+
+    hsv = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+
+    lower_hot = np.array([10, 35, 245], dtype="uint8")
+    upper_hot = np.array([45, 180, 255], dtype="uint8")
+    mask_hot = cv2.inRange(hsv, lower_hot, upper_hot)
+
+    lower_body = np.array([8, 120, 170], dtype="uint8")
+    upper_body = np.array([38, 255, 255], dtype="uint8")
+    mask_body = cv2.inRange(hsv, lower_body, upper_body)
+
+    mask = mask_hot | mask_body
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    heuristic_fire_detected = False
+    heuristic_box = None
+
+    image_area = image_np.shape[0] * image_np.shape[1]
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        area_ratio = area / image_area
+        if 20 < area and area_ratio < 0.08:
+            x, y, w, h = cv2.boundingRect(cnt)
+            roi = image_np[y:y + h, x:x + w]
+            roi_hot = mask_hot[y:y + h, x:x + w]
+            roi_body = mask_body[y:y + h, x:x + w]
+
+            if roi.size > 0:
+                gray_roi = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
+                std_dev = np.std(gray_roi)
+                hot_pixels = cv2.countNonZero(roi_hot)
+                body_pixels = cv2.countNonZero(roi_body)
+
+                if hot_pixels >= 3 and body_pixels >= 8 and std_dev > 45:
+                    heuristic_fire_detected = True
+                    heuristic_box = [float(x), float(y), float(x + w), float(y + h)]
+                    break
+
+    is_fire = model_fire_detected or (
+        heuristic_fire_detected and not using_custom_fire_model
+    )
+
+    if is_fire:
+        if not any(d["class"] == "fire" for d in detections):
+            detections.append({
+                "class": "fire",
+                "confidence": 0.5,
+                "box": heuristic_box or [0, 0, image_np.shape[1], image_np.shape[0]],
+                "source": "color_heuristic",
+                "alert_eligible": not using_custom_fire_model,
+            })
+
+    alert_level, alert_summary = determine_alert(detections, heuristic_fire_detected)
+    event = None
+    if is_fire and is_live_capture:
+        event = record_event(
