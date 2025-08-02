@@ -183,3 +183,58 @@ async def detect(file: UploadFile = File(...)):
     event = None
     if is_fire and is_live_capture:
         event = record_event(
+            image_np, detections, alert_level, alert_summary,
+            camera_health, using_custom_fire_model,
+        )
+
+    return {
+        "detections": detections,
+        "fire_detected": is_fire,
+        "alert_level": alert_level,
+        "alert_summary": alert_summary,
+        "color_heuristic_detected": heuristic_fire_detected,
+        "camera_health": camera_health,
+        "event": event,
+        "event_recording": "live_capture_only",
+        "frame": {
+            "width": image_np.shape[1],
+            "height": image_np.shape[0],
+        },
+        "model": "custom_fire_best.pt" if using_custom_fire_model else "yolov8s-worldv2 fallback",
+    }
+
+
+@app.get("/")
+def read_root():
+    if FRONTEND_DIST.exists():
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+    return {"status": "Fire Detection API is running"}
+
+
+@app.get("/events")
+def get_events(limit: int = Query(default=25, ge=1, le=100)):
+    with event_lock:
+        events = hydrate_event_media(load_events())
+        return {"events": events[:limit]}
+
+
+@app.get("/camera-health")
+def camera_health_status():
+    from vision import last_frame_received_at as _last_received
+
+    if _last_received == 0:
+        return {
+            "status": "problem",
+            "issues": ["no_frames_received"],
+            "last_frame_age_seconds": None,
+        }
+
+    import time
+    age = round(time.time() - _last_received, 2)
+    status = "ok" if age < 5 else "problem"
+    issues = [] if age < 5 else ["no_recent_frames"]
+    return {
+        "status": status,
+        "issues": issues,
+        "last_frame_age_seconds": age,
+    }
