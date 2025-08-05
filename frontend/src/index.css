@@ -1,0 +1,500 @@
+
+:root {
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Geist", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --bg: #fafaf8;
+  --surface: #ffffff;
+  --surface-muted: #f5f5f3;
+  --surface-elevated: #ffffff;
+  --text: #0a0a0a;
+  --muted: #6b6b6b;
+  --soft: #a1a1a1;
+  --border: #e5e5e3;
+  --border-strong: #c8c8c4;
+  --media-border: #dcdcd8;
+  --input: #ffffff;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
+  --danger: #cf6b52;
+  --danger-strong: #b55a43;
+  --warning: #d97757;
+  --safe: #2e8b57;
+  --safe-strong: #246e44;
+  --accent: #0a0a0a;
+  --accent-text: #fafafa;
+  --highlight: #cf6b52;
+  --radius: 8px;
+  --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme="dark"] {
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-muted: #18181b;
+  --surface-elevated: #1e1e21;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --soft: #52525b;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --media-border: #2d2d30;
+  --input: #111113;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --danger: #cf6b52;
+  --danger-strong: #b55a43;
+  --warning: #d97757;
+  --safe: #2e8b57;
+  --safe-strong: #246e44;
+  --accent: #fafafa;
+  --accent-text: #09090b;
+  --highlight: #cf6b52;
+}
+
+/* ==========================================================================
+   Reset & Base
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.app-shell {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 48px) 48px;
+}
+
+.hero-section {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.hero-nav,
+.hero-layout,
+.hero-actions,
+.hero-highlights,
+.hero-telemetry {
+
+  display: flex;
+}
+
+.hero-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px clamp(16px, 4vw, 48px);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.hero-brand-mark {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hero-brand-mark span {
+  display: block;
+  background: var(--text);
+  transition: background var(--transition);
+}
+
+.hero-theme {
+  background: transparent;
+}
+
+.hero-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 100px 24px 60px;
+}
+
+.hero-copy {
+  max-width: 100%;
+}
+
+.hero-copy h1 {
+  margin: 14px 0 0;
+  font-family: var(--font-sans);
+  font-size: clamp(40px, 5.5vw, 64px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.hero-copy p {
+  max-width: 480px;
+  margin: 20px auto 0;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+
+
+.hero-try-btn {
+  min-width: 140px;
+}
+
+.hero-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 64px;
+  gap: 16px;
+  text-align: left;
+}
+
+.hero-highlight-tag {
+  position: relative;
+  min-height: 100px;
+  padding: 20px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  border-radius: 0;
+  transition: border-color var(--transition), background var(--transition);
+  margin-bottom: 100px;
+}
+
+.hero-highlight-tag:hover {
+  border-color: var(--soft);
+  background: var(--surface);
+}
+
+.hero-highlight-tag::before,
+.hero-highlight-tag::after {
+  display: none;
+}
+
+.hero-highlight-tag.fire,
+.hero-highlight-tag.verify,
+.hero-highlight-tag.capture {}
+
+:root[data-theme="dark"] .hero-highlight-tag {}
+
+.hero-highlight-tag span {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: -1px;
+  display: inline-flex;
+  width: fit-content;
+  border: none;
+  border-radius: 0;
+  padding: 6px 10px;
+  background: var(--danger);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  font-weight: 500;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.hero-highlight-tag strong {
+  display: block;
+  margin-top: 0;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.hero-highlight-tag small {
+  display: block;
+  max-width: 210px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.hero-visual {
+  min-width: 0;
+}
+
+.bitmap-frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border: 1px dotted var(--media-border);
+  background: #050505;
+}
+
+.bitmap-scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.hero-scan-line {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: 22%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.38);
+  opacity: 0.66;
+  animation: heroScan 4.2s steps(24, end) infinite;
+}
+
+.hero-detection-square {
+  position: absolute;
+  z-index: 3;
+  left: 57%;
+  top: 45%;
+  width: 13%;
+  height: 29%;
+  border: 2px solid #f5f5f0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 255, 255, 0.26);
+  animation: heroDetectPulse 1.7s steps(2, end) infinite;
+}
+
+.hero-detection-square::before,
+.hero-detection-square::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1px dotted rgba(245, 245, 240, 0.42);
+}
+
+.hero-detection-square::after {
+  inset: 8px;
+  border-color: rgba(255, 116, 48, 0.7);
+  animation: heroInnerLock 1.7s steps(2, end) infinite;
+}
+
+.hero-detection-square span {
+  position: absolute;
+  left: -2px;
+  top: -34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 220px;
+  min-height: 26px;
+  padding: 5px 9px;
+  background: rgba(245, 245, 240, 0.96);
+  color: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.48);
+}
+
+:root:not([data-theme="dark"]) .hero-detection-square span {
+  background: rgba(17, 17, 16, 0.96);
+  color: #ffffff;
+}
+
+.hero-detection-square span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+.hero-telemetry {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  padding: 0 14px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.hero-telemetry span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: var(--surface);
+}
+
+.hero-telemetry span:first-child {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.hero-telemetry span:nth-child(2) {
+  border-color: var(--safe);
+  color: var(--safe);
+}
+
+.hero-telemetry i {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.hero-console-bridge {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.hero-console-bridge::before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 36px;
+  margin: 0 auto 10px;
+  background: var(--border-strong);
+}
+
+.hero-console-bridge span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  padding: 8px 16px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.hero-console-bridge:hover span {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--text);
+  border-style: solid;
+  background: var(--surface);
+}
+
+.hero-console-bridge:active span {
+  transform: scale(0.98);
+}
+
+.console-section {
+  scroll-margin-top: 18px;
+  padding-top: 1px;
+}
+
+.console-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px clamp(16px, 4vw, 48px);
+  margin: 0 calc(-1 * clamp(16px, 4vw, 48px)) 28px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--border);
+}
+
