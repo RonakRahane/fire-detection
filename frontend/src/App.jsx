@@ -198,3 +198,199 @@ const App = () => {
     const intervalId = setInterval(fetchEvents, 8000);
     return () => clearInterval(intervalId);
   }, [fetchEvents]);
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem('fire-monitor-theme');
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      setTheme(storedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('fire-monitor-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadPreview) {
+        URL.revokeObjectURL(uploadPreview);
+      }
+    };
+  }, [uploadPreview]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const openConsole = useCallback((view = 'live') => {
+    setActiveView(view);
+    setCurrentRoute('console');
+  }, []);
+
+  const openLanding = useCallback(() => {
+    setCurrentRoute('landing');
+  }, []);
+
+  return (
+    <div className="app-shell">
+      {currentRoute === 'landing' ? (
+        <HeroSection
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenConsole={() => openConsole('live')}
+          onOpenUpload={() => openConsole('upload')}
+        />
+      ) : (
+        <section className="console-section" id="console">
+          <nav className="console-nav">
+            <div className="console-nav-brand">
+              <span className="hero-brand-mark" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+              </span>
+              <span onClick={openLanding}>Fire Detection</span>
+            </div>
+            <div className="console-nav-actions">
+              <button className="icon-btn" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            </div>
+          </nav>
+
+          <header className="console-header">
+            <div>
+              <span className="eyebrow">System Dashboard</span>
+              <h1>Monitoring Console</h1>
+              <p>{response}</p>
+            </div>
+          </header>
+
+          <main className="dashboard-grid">
+            <section className="monitor-panel">
+              <div className="view-tabs">
+                <button className={activeView === 'live' ? 'active' : ''} onClick={() => setActiveView('live')} type="button">
+                  Live Camera
+                </button>
+                <button className={activeView === 'upload' ? 'active' : ''} onClick={() => setActiveView('upload')} type="button">
+                  Image Test
+                </button>
+                <button className={activeView === 'history' ? 'active' : ''} onClick={() => setActiveView('history')} type="button">
+                  History
+                </button>
+              </div>
+
+              {activeView === 'live' && (
+                <>
+                  <div className="video-container">
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/jpeg"
+                      minScreenshotWidth={640}
+                      minScreenshotHeight={480}
+                      videoConstraints={{
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'environment',
+                      }}
+                      className="webcam-feed"
+                      style={{ width: '100%', height: 'auto' }}
+                    />
+                    <DetectionOverlay detections={detections} frameSize={frameSize} />
+                  </div>
+
+                  <div className="control-row">
+                    <label>
+                      Base API
+                      <input type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
+                    </label>
+                    <label>
+                      Interval
+                      <select value={intervalMs} onChange={(e) => setIntervalMs(Number(e.target.value))}>
+                        <option value={100}>100ms</option>
+                        <option value={500}>500ms</option>
+                        <option value={1000}>1000ms</option>
+                        <option value={2000}>2000ms</option>
+                      </select>
+                    </label>
+                    <button className={`primary-btn ${isRunning ? 'stop' : ''}`} onClick={() => setIsRunning(!isRunning)} type="button">
+                      {isRunning ? 'Stop Monitoring' : 'Start Monitoring'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {activeView === 'upload' && (
+                <section className="upload-panel">
+                  <div className="upload-actions">
+                    <input accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
+                    <button className="primary-btn" onClick={() => uploadInputRef.current?.click()} type="button">
+                      Choose Image
+                    </button>
+                  </div>
+                  <div className="upload-preview">
+                    {uploadPreview ? (
+                      <>
+                        <img src={uploadPreview} alt="Uploaded fire test" />
+                        <DetectionOverlay detections={detections} frameSize={frameSize} />
+                      </>
+                    ) : (
+                      <span>Select an image to test fire detection.</span>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {activeView === 'history' && (
+                <EventHistory
+                  events={events}
+                  baseApi={baseApi}
+                  onRefresh={fetchEvents}
+                  onSelectEvent={setSelectedEvent}
+                  isLoading={eventsLoading}
+                  updatedAt={eventsUpdatedAt}
+                />
+              )}
+            </section>
+
+            <aside className="side-stack">
+              <section className="side-panel">
+                <h2>Alert Details</h2>
+                <div className="metric-row">
+                  <span>Level</span>
+                  <strong>{alertLevel.toUpperCase()}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Detections</span>
+                  <strong>{detections.length}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Alert Boxes</span>
+                  <strong>{detections.filter((d) => d.alert_eligible).length}</strong>
+                </div>
+              </section>
+
+              <CameraHealth health={cameraHealth} onRefresh={fetchCameraHealth} />
+
+              <EventHistory
+                events={events.slice(0, 3)}
+                baseApi={baseApi}
+                onRefresh={fetchEvents}
+                onSelectEvent={setSelectedEvent}
+                isLoading={eventsLoading}
+                updatedAt={eventsUpdatedAt}
+              />
+            </aside>
+          </main>
+        </section>
+      )}
+
+      <EventViewer event={selectedEvent} baseApi={baseApi} onClose={() => setSelectedEvent(null)} />
+    </div>
+  );
+};
+
+export default App;
