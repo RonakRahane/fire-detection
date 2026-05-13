@@ -1,7 +1,6 @@
-# Event management module for persisting fire alerts, snapshots, and video clip previews.
-# Handles event logging cooldowns, recent frame buffering, and animated GIF preview generation.
-
 import json
+import logging
+import os
 import threading
 import time
 import uuid
@@ -9,25 +8,47 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-import cv2
-import numpy as np
 from PIL import Image
 
 from config import (
+    CONFIRM_FRAMES,
+    CONFIRM_MAX_AGE_SECONDS,
+    CONFIRM_WINDOW,
     EVENTS_FILE,
     EVENT_COOLDOWN_SECONDS,
     FIRE_CLASSES,
+    MAX_EVENTS,
     MEDIA_DIR,
     RECENT_FRAME_LIMIT,
 )
 
+logger = logging.getLogger("uvicorn.error")
+
 recent_frames = deque(maxlen=RECENT_FRAME_LIMIT)
+recent_signals = deque(maxlen=CONFIRM_WINDOW)
 event_lock = threading.Lock()
 last_event_at = 0.0
 
 
 def remember_frame(image_np):
-    recent_frames.append((time.time(), image_np.copy()))
+    recent_frames.append(image_np.copy())
+
+
+def confirm_live_signal(fire, smoke):
+    """Records one live frame's candidates and reports which signals held across the recent frames."""
+    now = time.time()
+    recent_signals.append((now, fire, smoke))
+    window = [signal for signal in recent_signals if now - signal[0] <= CONFIRM_MAX_AGE_SECONDS]
+    fire_frames = sum(1 for _, has_fire, _ in window if has_fire)
+    smoke_frames = sum(1 for _, _, has_smoke in window if has_smoke)
+    return {
+        "window": CONFIRM_WINDOW,
+        "required": CONFIRM_FRAMES,
+        "fire_frames": fire_frames,
+        "smoke_frames": smoke_frames,
+        "fire_confirmed": fire and fire_frames >= CONFIRM_FRAMES,
+        "smoke_confirmed": smoke and smoke_frames >= CONFIRM_FRAMES,
+    }
 
 
 def load_events():
@@ -36,11 +57,18 @@ def load_events():
     try:
         return json.loads(EVENTS_FILE.read_text())
     except json.JSONDecodeError:
+        # Keep the damaged file for recovery instead of letting the next save overwrite it.
+        backup = EVENTS_FILE.with_name(f"events.corrupt-{int(time.time())}.json")
+        EVENTS_FILE.replace(backup)
+        logger.warning("events.json was unreadable; moved it to %s and started a new log", backup.name)
         return []
 
 
 def save_events(events):
-    EVENTS_FILE.write_text(json.dumps(events, indent=2))
+    # Write to a temporary file and swap it in, so a crash mid-write never truncates the log.
+    temp_file = EVENTS_FILE.with_suffix(".json.tmp")
+    temp_file.write_text(json.dumps(events, indent=2))
+    os.replace(temp_file, EVENTS_FILE)
 
 
 def media_path_from_url(media_url):
@@ -54,113 +82,45 @@ def media_path_from_url(media_url):
     return MEDIA_DIR / filename
 
 
-def build_gif_preview_from_video(event):
-    if event.get("gif_url"):
-        return False
+def delete_event_media(events):
+    # "clip_url" covers the MP4 clips that early versions recorded.
+    for event in events:
+        for key in ("snapshot_url", "gif_url", "clip_url"):
+            path = media_path_from_url(event.get(key))
+            if path and path.resolve().parent == MEDIA_DIR.resolve():
+                path.unlink(missing_ok=True)
 
-    if event.get("clip_preview_url"):
-        event["gif_url"] = event.get("clip_preview_url")
-        return True
 
-    clip_path = media_path_from_url(event.get("clip_url"))
-    if not clip_path or not clip_path.exists():
-        return False
-
-    gif_name = f"{clip_path.stem}.gif"
-    gif_path = MEDIA_DIR / gif_name
-    if gif_path.exists():
-        event["gif_url"] = f"/media/{gif_name}"
-        event["clip_preview_url"] = event["gif_url"]
-        return True
-
-    capture = cv2.VideoCapture(str(clip_path))
-    frames = []
-    index = 0
-
-    while capture.isOpened() and len(frames) < 16:
-        ok, frame = capture.read()
-        if not ok:
-            break
-        if index % 2 == 0:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            gif_frame = Image.fromarray(rgb_frame).resize(
-                (480, 360), Image.Resampling.LANCZOS
-            )
-            frames.append(gif_frame)
-        index += 1
-
-    capture.release()
-
-    if not frames:
-        return False
-
-    frames[0].save(
-        gif_path,
+def save_gif_capture(event_id):
+    """Encodes the buffered live frames as the event's GIF and returns its media URL."""
+    gif_frames = [
+        Image.fromarray(frame).resize((480, 360), Image.Resampling.LANCZOS)
+        for frame in list(recent_frames)[::2]
+    ]
+    gif_name = f"{event_id}.gif"
+    gif_frames[0].save(
+        MEDIA_DIR / gif_name,
         save_all=True,
-        append_images=frames[1:],
+        append_images=gif_frames[1:],
         duration=250,
         loop=0,
         optimize=True,
     )
-    event["gif_url"] = f"/media/{gif_name}"
-    event["clip_preview_url"] = event["gif_url"]
-    return True
-
-
-def hydrate_event_media(events):
-    changed = False
-    for event in events:
-        changed = build_gif_preview_from_video(event) or changed
-    if changed:
-        save_events(events)
-    return events
-
-
-def save_gif_capture(event_id, fallback_frame=None):
-    frames = list(recent_frames)
-    if not frames and fallback_frame is not None:
-        frames = [(time.time(), fallback_frame)]
-    if not frames:
-        return {"gif_url": None, "clip_preview_url": None}
-
-    gif_name = f"{event_id}.gif"
-    gif_path = MEDIA_DIR / gif_name
-    first_frame = frames[0][1]
-    height, width = first_frame.shape[:2]
-
-    gif_frames = []
-    for index, (_, frame) in enumerate(frames):
-        if frame.shape[:2] != (height, width):
-            frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
-
-        if index % 2 == 0:
-            gif_frame = Image.fromarray(frame).resize(
-                (480, 360), Image.Resampling.LANCZOS
-            )
-            gif_frames.append(gif_frame)
-
-    if gif_frames:
-        gif_frames[0].save(
-            gif_path,
-            save_all=True,
-            append_images=gif_frames[1:],
-            duration=250,
-            loop=0,
-            optimize=True,
-        )
-
-    gif_url = f"/media/{gif_name}" if gif_path.exists() else None
-    return {
-        "gif_url": gif_url,
-        "clip_preview_url": gif_url,
-    }
+    return f"/media/{gif_name}"
 
 
 def determine_alert(detections, color_heuristic_detected):
-    alert_detections = [d for d in detections if d.get("alert_eligible")]
+    alert_detections = [d for d in detections if d["confirmed"]]
     if not alert_detections:
+        pending = [d for d in detections if d.get("alert_eligible")]
+        if pending:
+            best = max(pending, key=lambda d: d.get("confidence", 0))
+            subject = "smoke" if best.get("class") == "smoke" else "fire"
+            return "suspicious", f"Possible {subject} at {round(best['confidence'] * 100)}%, confirming"
+
+        # Smoke boxes on a person are hair or heads, not a rejected fire signal.
         rejected_fire = any(
-            d.get("class") in FIRE_CLASSES and not d.get("alert_eligible")
+            d.get("class") in FIRE_CLASSES and not d.get("alert_eligible") and not d.get("on_person")
             for d in detections
         )
         if rejected_fire or color_heuristic_detected:
@@ -192,9 +152,9 @@ def record_event(image_np, detections, alert_level, alert_summary, camera_health
     snapshot_path = MEDIA_DIR / snapshot_name
     Image.fromarray(image_np).save(snapshot_path, quality=92)
 
-    gif_media = save_gif_capture(event_id, image_np)
+    gif_url = save_gif_capture(event_id)
 
-    alert_detections = [d for d in detections if d.get("alert_eligible")]
+    alert_detections = [d for d in detections if d["confirmed"]]
     best_detection = max(
         alert_detections, key=lambda d: d.get("confidence", 0), default=None
     )
@@ -205,8 +165,7 @@ def record_event(image_np, detections, alert_level, alert_summary, camera_health
         "alert_level": alert_level,
         "summary": alert_summary,
         "snapshot_url": f"/media/{snapshot_name}",
-        "gif_url": gif_media.get("gif_url"),
-        "clip_preview_url": gif_media.get("clip_preview_url"),
+        "gif_url": gif_url,
         "best_detection": best_detection,
         "detections": detections,
         "camera_health": camera_health,
@@ -216,7 +175,29 @@ def record_event(image_np, detections, alert_level, alert_summary, camera_health
     with event_lock:
         events = load_events()
         events.insert(0, event)
-        save_events(events[:100])
+        save_events(events[:MAX_EVENTS])
+        delete_event_media(events[MAX_EVENTS:])
         last_event_at = now
 
     return event
+
+
+def delete_event(event_id):
+    """Removes one event and its snapshot and GIF. Returns False when no event has that id."""
+    with event_lock:
+        events = load_events()
+        removed = [event for event in events if event.get("id") == event_id]
+        if not removed:
+            return False
+        save_events([event for event in events if event.get("id") != event_id])
+        delete_event_media(removed)
+    return True
+
+
+def clear_events():
+    """Removes every event and its media. Returns how many events were deleted."""
+    with event_lock:
+        events = load_events()
+        save_events([])
+        delete_event_media(events)
+    return len(events)
