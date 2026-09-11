@@ -1,6 +1,3 @@
-# Standalone training script for fine-tuning YOLOv8 object detection on the D-FIRE dataset.
-# Parses command-line hyperparameters, checks hardware acceleration (CUDA/MPS), and saves model weights.
-
 from argparse import ArgumentParser
 from pathlib import Path
 
