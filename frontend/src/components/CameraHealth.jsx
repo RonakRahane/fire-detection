@@ -1,6 +1,3 @@
-// Side-panel widget component that displays real-time camera feed diagnostics.
-// Renders camera image metrics including brightness, sharpness, frame age, and frozen frame alerts.
-
 import React from 'react';
 
 const CameraHealth = ({ health, onRefresh }) => {

@@ -1,6 +1,3 @@
-// Visual bounding box overlay component rendered over camera frames and test images.
-// Scales SVG bounding boxes and HTML confidence badges according to object detection coordinates.
-
 import React from 'react';
 import { formatPercent } from '../utils/helpers';
 
