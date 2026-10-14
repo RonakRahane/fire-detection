@@ -1,14 +1,11 @@
-// Modal dialog component for viewing full-size event snapshots and animated GIF previews.
-// Provides direct media download links and backdrop overlay dismiss actions.
-
 import React from 'react';
 import { mediaUrl } from '../utils/helpers';
 
-const EventViewer = ({ event, baseApi, onClose }) => {
+const EventViewer = ({ event, baseApi, onClose, onDelete }) => {
   if (!event) return null;
 
   const snapshot = mediaUrl(baseApi, event.snapshot_url);
-  const gifCapture = mediaUrl(baseApi, event.gif_url || event.clip_preview_url);
+  const gifCapture = mediaUrl(baseApi, event.gif_url);
 
   return (
     <div className="event-viewer" role="dialog" aria-modal="true" aria-label="Event media viewer">
@@ -41,6 +38,9 @@ const EventViewer = ({ event, baseApi, onClose }) => {
           <a className="primary-btn link-btn" href={snapshot} target="_blank" rel="noreferrer">Open Image</a>
           {gifCapture && (
             <a className="primary-btn link-btn secondary" href={gifCapture} target="_blank" rel="noreferrer">Open GIF Capture</a>
+          )}
+          {onDelete && (
+            <button className="primary-btn danger" onClick={() => onDelete(event)} type="button">Delete Event</button>
           )}
         </div>
       </div>
