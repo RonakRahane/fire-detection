@@ -247,6 +247,16 @@ const App = () => {
         <nav className="sticky top-0 z-[100] -mx-[clamp(16px,4vw,48px)] mb-7 flex items-center justify-between border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] px-[clamp(16px,4vw,48px)] py-[14px] backdrop-blur-[12px] max-[760px]:-mx-[14px] max-[760px]:mb-5 max-[760px]:gap-0 max-[760px]:px-[14px] max-[760px]:py-3">
           <Logo href="/" title="Back to the FireCatch home page" />
           <div className="flex items-center gap-2.5 max-[760px]:gap-1.5">
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-mono text-[var(--muted)] max-[480px]:hidden"
+              title={`Connected API: ${baseApi}`}
+            >
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-sans uppercase tracking-wider text-[var(--soft)]">API</span>
+              <span className="max-w-[150px] truncate text-[11px] text-[var(--text)] sm:max-w-[240px]">
+                {baseApi}
+              </span>
+            </div>
             <button className="inline-flex size-9 min-w-0 items-center justify-center rounded-[var(--radius)] border border-transparent bg-transparent p-0 text-[var(--muted)] transition-all duration-[180ms] hover:bg-[var(--surface-muted)] hover:text-[var(--text)] max-[760px]:size-[34px]" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -297,7 +307,14 @@ const App = () => {
 
                 <div className="mt-3 grid grid-cols-[minmax(220px,1fr)_auto_auto] items-end gap-2.5 max-[760px]:grid-cols-1 max-[760px]:gap-2">
                   <label className="flex flex-col gap-1.5 text-xs font-bold text-[var(--soft)]">
-                    Base API
+                    <span className="flex items-center justify-between">
+                      <span>Base API</span>
+                      {import.meta.env.VITE_API_URL && (
+                        <span className="text-[10px] font-mono font-normal text-emerald-600 dark:text-emerald-400">
+                          auto-configured from VITE_API_URL
+                        </span>
+                      )}
+                    </span>
                     <input className="min-h-10 rounded-[calc(var(--radius)-2px)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--text)] transition-all duration-[180ms] focus:border-[var(--text)] focus:outline-none focus:ring-3 focus:ring-[color-mix(in_srgb,var(--accent)_10%,transparent)]" type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
                   </label>
                   <label className="flex flex-col gap-1.5 text-xs font-bold text-[var(--soft)]">
@@ -318,11 +335,18 @@ const App = () => {
 
             {activeView === 'upload' && (
               <section>
-                <div className="mb-3 grid auto-cols-max justify-start gap-2.5">
-                  <input className="hidden" accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
-                  <button className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[9px] font-sans text-sm font-medium tracking-[-0.01em] text-[var(--accent-text)] no-underline transition-all duration-[180ms] hover:opacity-88 active:scale-[0.98] max-[760px]:w-full" onClick={() => uploadInputRef.current?.click()} type="button">
-                    Choose Image
-                  </button>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <input className="hidden" accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
+                    <button className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[9px] font-sans text-sm font-medium tracking-[-0.01em] text-[var(--accent-text)] no-underline transition-all duration-[180ms] hover:opacity-88 active:scale-[0.98] max-[760px]:w-full" onClick={() => uploadInputRef.current?.click()} type="button">
+                      Choose Image
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-[var(--muted)]">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] uppercase font-sans text-[var(--soft)]">Target API:</span>
+                    <span className="truncate max-w-[200px] text-[var(--text)]">{baseApi}</span>
+                  </div>
                 </div>
                 <div className={`${"relative max-h-[80vh] w-full overflow-hidden border border-dotted border-[var(--media-border)] bg-[#050505] max-[760px]:max-h-[65vh]"} ${theme === 'light' ? "bg-[#fbfbfa]" : ''}`}>
                   {uploadPreview ? (
