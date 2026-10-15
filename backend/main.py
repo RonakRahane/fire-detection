@@ -68,20 +68,24 @@ if FRONTEND_DIST.exists():
 if CUSTOM_MODEL_PATH.exists():
     model = YOLO(str(CUSTOM_MODEL_PATH))
     using_custom_fire_model = True
+    logger.info("Loaded custom fire model from %s", CUSTOM_MODEL_PATH)
 else:
-    from ultralytics import YOLOWorld
-
     logger.warning(
-        "Custom fire model not found at %s. Falling back to YOLO-World, which is far less accurate for fire.",
+        "Custom fire model not found at %s. Falling back to emergency detector.",
         CUSTOM_MODEL_PATH,
     )
-    model = YOLOWorld(str(BASE_DIR / "yolov8s-worldv2.pt"))
-    model.set_classes([
-        "person", "face", "spectacles", "glasses", "sunglasses",
-        "pencil", "pen", "book", "notebook",
-        "mouse", "computer mouse", "cup", "bottle",
-        "fire", "flame", "smoke",
-    ])
+    fallback_pt = BASE_DIR / "yolov8s-worldv2.pt"
+    if fallback_pt.is_file():
+        from ultralytics import YOLOWorld
+        model = YOLOWorld(str(fallback_pt))
+        model.set_classes([
+            "person", "face", "spectacles", "glasses", "sunglasses",
+            "pencil", "pen", "book", "notebook",
+            "mouse", "computer mouse", "cup", "bottle",
+            "fire", "flame", "smoke",
+        ])
+    else:
+        model = YOLO(str(PERSON_MODEL_PATH if PERSON_MODEL_PATH.is_file() else "yolov8n.pt"))
     using_custom_fire_model = False
 
 # Finds people so smoke boxes on hair and heads can be dropped. Optional: without the weights, smoke is not checked.
@@ -272,7 +276,18 @@ def analyze_frame(pil_image, image_np, live):
 def read_root():
     if FRONTEND_DIST.exists():
         return FileResponse(str(FRONTEND_DIST / "index.html"))
-    return {"status": "Fire Detection API is running"}
+    return {"status": "Fire Detection API is running", "custom_model_loaded": using_custom_fire_model}
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "custom_fire_model_loaded": using_custom_fire_model,
+        "custom_model_path": str(CUSTOM_MODEL_PATH),
+        "person_model_loaded": person_model is not None,
+        "indoor_model_loaded": indoor_fire_model is not None,
+    }
 
 
 @app.get("/events")

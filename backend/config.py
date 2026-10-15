@@ -2,12 +2,29 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-# Override the primary detector weights with FIRE_MODEL_PATH.
-CUSTOM_MODEL_PATH = Path(os.environ.get("FIRE_MODEL_PATH") or BASE_DIR / "models" / "fire_best.pt")
-# COCO weights are used to identify people in smoke detections.
-PERSON_MODEL_PATH = BASE_DIR / "yolov8n.pt"
-# Optional secondary detector for indoor flames; its smoke predictions are ignored.
-INDOOR_FIRE_MODEL_PATH = Path(os.environ.get("INDOOR_FIRE_MODEL_PATH", BASE_DIR / "models" / "fire_indoor_yolo26s.pt"))
+
+def _resolve_model_path(env_var: str, relative_file: str) -> Path:
+    """Finds the model file whether running locally, in Docker, or on Render."""
+    env_val = os.environ.get(env_var)
+    if env_val and Path(env_val).is_file():
+        return Path(env_val)
+    # Check directly relative to config.py (e.g. BASE_DIR / models / fire_best.pt)
+    local = BASE_DIR / relative_file
+    if local.is_file():
+        return local
+    # Check common Render / container paths
+    for root in [BASE_DIR.parent, Path("/opt/render/project/src")]:
+        for candidate in [root / relative_file, root / "backend" / relative_file]:
+            if candidate.is_file():
+                return candidate
+    return local
+
+# Primary detector weights
+CUSTOM_MODEL_PATH = _resolve_model_path("FIRE_MODEL_PATH", "models/fire_best.pt")
+# COCO weights to identify people in smoke detections
+PERSON_MODEL_PATH = _resolve_model_path("PERSON_MODEL_PATH", "yolov8n.pt")
+# Optional secondary detector for indoor flames
+INDOOR_FIRE_MODEL_PATH = _resolve_model_path("INDOOR_FIRE_MODEL_PATH", "models/fire_indoor_yolo26s.pt")
 INDOOR_FIRE_MIN_CONFIDENCE = 0.70
 EVENTS_DIR = BASE_DIR / "events"
 MEDIA_DIR = EVENTS_DIR / "media"
