@@ -7,7 +7,7 @@ const DetectionOverlay = ({ detections, frameSize }) => {
   return (
     <>
       <svg
-        className="detection-overlay"
+        className="pointer-events-none absolute inset-0 size-full"
         viewBox={`0 0 ${frameSize.width} ${frameSize.height}`}
         preserveAspectRatio="none"
         aria-hidden="true"
@@ -19,7 +19,7 @@ const DetectionOverlay = ({ detections, frameSize }) => {
           return (
             <rect
               key={`${detection.class}-${index}-${x1}-${y1}`}
-              className="detection-square"
+              className={`${"fill-transparent stroke-[#f5f5f0] stroke-2 [stroke-linecap:square] [stroke-linejoin:miter] [vector-effect:non-scaling-stroke] [shape-rendering:crispEdges] [filter:drop-shadow(0_0_5px_rgba(0,0,0,0.72))]"} ${document.documentElement.dataset.theme !== 'dark' ? "stroke-[#111110] [filter:drop-shadow(0_0_4px_rgba(255,255,255,0.72))]" : ''}`}
               x={x1}
               y={y1}
               width={width}
@@ -37,7 +37,7 @@ const DetectionOverlay = ({ detections, frameSize }) => {
         return (
           <span
             key={`tag-${index}`}
-            className="video-detection-tag"
+            className="pointer-events-none inline-flex w-fit whitespace-nowrap rounded-none border-0 bg-danger px-2.5 py-1.5 font-mono text-[11px] leading-none font-medium uppercase text-white"
             style={{
               position: 'absolute',
               left: `calc(${leftPercent}% - 1px)`,

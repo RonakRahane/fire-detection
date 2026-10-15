@@ -1,0 +1,3 @@
+export const consoleTheme = (dark) => ({
+  '--bg': dark ? '#09090b' : '#fafaf8', '--surface': dark ? '#111113' : '#ffffff', '--surface-muted': dark ? '#18181b' : '#f5f5f3', '--text': dark ? '#fafafa' : '#0a0a0a', '--muted': dark ? '#a1a1aa' : '#6b6b6b', '--soft': dark ? '#52525b' : '#a1a1a1', '--border': dark ? '#27272a' : '#e5e5e3', '--border-strong': dark ? '#3f3f46' : '#c8c8c4', '--media-border': dark ? '#2d2d30' : '#dcdcd8', '--accent': dark ? '#fafafa' : '#0a0a0a', '--accent-text': dark ? '#09090b' : '#fafafa', '--danger': '#cf6b52', '--danger-strong': '#b55a43', '--warning': '#d97757', '--safe': '#2e8b57', '--radius': '8px',
+});

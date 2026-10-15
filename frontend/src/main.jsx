@@ -1,9 +1,17 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
+import { consoleViewFromUrl } from './utils/helpers'
+import './theme.css'
+
+const ConsoleApp = lazy(() => import('./App.jsx'))
+const LandingPage = lazy(() => import('./landing/LandingPage.jsx'))
+
+const isConsole = Boolean(consoleViewFromUrl())
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <Suspense fallback={null}>
+      {isConsole ? <ConsoleApp /> : <LandingPage />}
+    </Suspense>
   </StrictMode>,
 )

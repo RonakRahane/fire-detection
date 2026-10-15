@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 import { Moon, Sun } from 'lucide-react';
-import './index.css';
 
 import DetectionOverlay from './components/DetectionOverlay';
 import CameraHealth from './components/CameraHealth';
 import EventViewer from './components/EventViewer';
 import EventHistory from './components/EventHistory';
+import Logo from './landing/components/brand/Logo';
 
 import { FIRE_CLASSES, consoleViewFromUrl, defaultApiUrl, formatPercent } from './utils/helpers';
+import { consoleTheme } from './consoleTw';
 
 axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
@@ -25,7 +26,7 @@ const App = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [intervalMs, setIntervalMs] = useState(500);
   const [baseApi, setBaseApi] = useState(defaultApiUrl);
-  const [response, setResponse] = useState('Waiting for start...');
+  const [response, setResponse] = useState('Camera standing by. Click Start Monitoring to begin.');
   const [detections, setDetections] = useState([]);
   const [frameSize, setFrameSize] = useState({ width: 960, height: 720 });
   const [alertLevel, setAlertLevel] = useState('safe');
@@ -241,50 +242,42 @@ const App = () => {
   }, []);
 
   return (
-    <div className="app-shell">
-      <section className="console-section" id="console">
-        <nav className="console-nav">
-          <a className="console-nav-brand" href="/" title="Back to the FireCatch home page">
-            <span className="brand-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-            </span>
-            <span>FireCatch</span>
-          </a>
-          <div className="console-nav-actions">
-            <button className="icon-btn" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+    <div className="min-h-screen w-full bg-[var(--bg)] font-sans text-sm leading-[1.6] tracking-[-0.01em] text-[var(--text)] antialiased" style={consoleTheme(theme === 'dark')}>
+      <section className="mx-auto w-[min(1200px,100%)] px-[clamp(16px,4vw,48px)] pb-12 max-[760px]:px-[14px] max-[760px]:pb-8" id="console">
+        <nav className="sticky top-0 z-[100] -mx-[clamp(16px,4vw,48px)] mb-7 flex items-center justify-between border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] px-[clamp(16px,4vw,48px)] py-[14px] backdrop-blur-[12px] max-[760px]:-mx-[14px] max-[760px]:mb-5 max-[760px]:gap-0 max-[760px]:px-[14px] max-[760px]:py-3">
+          <Logo href="/" title="Back to the FireCatch home page" />
+          <div className="flex items-center gap-2.5 max-[760px]:gap-1.5">
+            <button className="inline-flex size-9 min-w-0 items-center justify-center rounded-[var(--radius)] border border-transparent bg-transparent p-0 text-[var(--muted)] transition-all duration-[180ms] hover:bg-[var(--surface-muted)] hover:text-[var(--text)] max-[760px]:size-[34px]" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
         </nav>
 
-        <header className="console-header">
+        <header className="py-2 pb-9 max-[760px]:pt-1 max-[760px]:pb-5">
           <div>
-            <span className="eyebrow">System Dashboard</span>
-            <h1>Monitoring Console</h1>
-            <p>{response}</p>
+            <span className="block font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--soft)] max-[760px]:text-[10px]">Real-Time Security Feed</span>
+            <h1 className="mt-1.5 font-sans text-[clamp(24px,3vw,36px)] leading-[1.1] font-semibold tracking-[-0.025em] max-[760px]:text-[22px] max-[420px]:text-[20px]">Live Fire & Smoke Monitor</h1>
+            <p className="mt-2.5 max-w-[760px] text-sm leading-[1.5] text-[var(--muted)] max-[760px]:text-[13px]">{response}</p>
           </div>
         </header>
 
-        <main className="dashboard-grid">
-          <section className="monitor-panel">
-            <div className="view-tabs">
-              <button className={activeView === 'live' ? 'active' : ''} onClick={() => setActiveView('live')} type="button">
+        <main className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 max-[1080px]:grid-cols-1 max-[760px]:gap-3.5">
+          <section className="min-w-0 rounded-[var(--radius)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] p-[18px] transition-[border-color] duration-[180ms] max-[760px]:p-3">
+            <div className="mb-4 grid grid-cols-3 overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-muted)] p-1 max-[760px]:grid-cols-1 max-[760px]:p-[3px]">
+              <button className={`${"min-h-9 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 py-2.5 font-sans text-[13px] font-medium text-[var(--muted)] transition-all duration-[180ms] max-[760px]:min-h-[38px]"} ${activeView === 'live' ? "bg-[var(--surface)] text-[var(--text)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : ''}`} onClick={() => setActiveView('live')} type="button">
                 Live Camera
               </button>
-              <button className={activeView === 'upload' ? 'active' : ''} onClick={() => setActiveView('upload')} type="button">
-                Image Test
+              <button className={`${"min-h-9 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 py-2.5 font-sans text-[13px] font-medium text-[var(--muted)] transition-all duration-[180ms] max-[760px]:min-h-[38px]"} ${activeView === 'upload' ? "bg-[var(--surface)] text-[var(--text)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : ''}`} onClick={() => setActiveView('upload')} type="button">
+                Test Image
               </button>
-              <button className={activeView === 'history' ? 'active' : ''} onClick={() => setActiveView('history')} type="button">
-                History
+              <button className={`${"min-h-9 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 py-2.5 font-sans text-[13px] font-medium text-[var(--muted)] transition-all duration-[180ms] max-[760px]:min-h-[38px]"} ${activeView === 'history' ? "bg-[var(--surface)] text-[var(--text)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : ''}`} onClick={() => setActiveView('history')} type="button">
+                Event History
               </button>
             </div>
 
             {activeView === 'live' && (
               <>
-                <div className="video-container">
+                <div className={`${"relative max-h-[80vh] w-full overflow-hidden border border-dotted border-[var(--media-border)] bg-[#050505] max-[760px]:max-h-[65vh]"} ${theme === 'light' ? "bg-[#fbfbfa]" : ''}`}>
                   <Webcam
                     audio={false}
                     ref={webcamRef}
@@ -296,27 +289,27 @@ const App = () => {
                       height: { ideal: 720 },
                       facingMode: 'environment',
                     }}
-                    className="webcam-feed"
+                    className="block h-auto max-h-[80vh] w-full object-contain max-[760px]:max-h-[65vh]"
                     style={{ width: '100%', height: 'auto' }}
                   />
                   <DetectionOverlay detections={detections} frameSize={frameSize} />
                 </div>
 
-                <div className="control-row">
-                  <label>
+                <div className="mt-3 grid grid-cols-[minmax(220px,1fr)_auto_auto] items-end gap-2.5 max-[760px]:grid-cols-1 max-[760px]:gap-2">
+                  <label className="flex flex-col gap-1.5 text-xs font-bold text-[var(--soft)]">
                     Base API
-                    <input type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
+                    <input className="min-h-10 rounded-[calc(var(--radius)-2px)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--text)] transition-all duration-[180ms] focus:border-[var(--text)] focus:outline-none focus:ring-3 focus:ring-[color-mix(in_srgb,var(--accent)_10%,transparent)]" type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
                   </label>
-                  <label>
+                  <label className="flex flex-col gap-1.5 text-xs font-bold text-[var(--soft)]">
                     Interval
-                    <select value={intervalMs} onChange={(e) => setIntervalMs(Number(e.target.value))}>
+                    <select className="min-h-10 rounded-[calc(var(--radius)-2px)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--text)] transition-all duration-[180ms] focus:border-[var(--text)] focus:outline-none focus:ring-3 focus:ring-[color-mix(in_srgb,var(--accent)_10%,transparent)]" value={intervalMs} onChange={(e) => setIntervalMs(Number(e.target.value))}>
                       <option value={100}>100ms</option>
                       <option value={500}>500ms</option>
                       <option value={1000}>1000ms</option>
                       <option value={2000}>2000ms</option>
                     </select>
                   </label>
-                  <button className={`primary-btn ${isRunning ? 'stop' : ''}`} onClick={() => setIsRunning(!isRunning)} type="button">
+                  <button className={`${"inline-flex min-h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[9px] font-sans text-sm font-medium tracking-[-0.01em] text-[var(--accent-text)] no-underline transition-all duration-[180ms] hover:opacity-88 active:scale-[0.98] max-[760px]:w-full"} ${isRunning ? "border-danger bg-danger text-white" : ''}`} onClick={() => setIsRunning(!isRunning)} type="button">
                     {isRunning ? 'Stop Monitoring' : 'Start Monitoring'}
                   </button>
                 </div>
@@ -324,21 +317,21 @@ const App = () => {
             )}
 
             {activeView === 'upload' && (
-              <section className="upload-panel">
-                <div className="upload-actions">
-                  <input accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
-                  <button className="primary-btn" onClick={() => uploadInputRef.current?.click()} type="button">
+              <section>
+                <div className="mb-3 grid auto-cols-max justify-start gap-2.5">
+                  <input className="hidden" accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
+                  <button className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--accent)] bg-[var(--accent)] px-5 py-[9px] font-sans text-sm font-medium tracking-[-0.01em] text-[var(--accent-text)] no-underline transition-all duration-[180ms] hover:opacity-88 active:scale-[0.98] max-[760px]:w-full" onClick={() => uploadInputRef.current?.click()} type="button">
                     Choose Image
                   </button>
                 </div>
-                <div className="upload-preview">
+                <div className={`${"relative max-h-[80vh] w-full overflow-hidden border border-dotted border-[var(--media-border)] bg-[#050505] max-[760px]:max-h-[65vh]"} ${theme === 'light' ? "bg-[#fbfbfa]" : ''}`}>
                   {uploadPreview ? (
                     <>
-                      <img src={uploadPreview} alt="Uploaded fire test" />
+                      <img className="block h-auto max-h-[80vh] w-full object-contain max-[760px]:max-h-[65vh]" src={uploadPreview} alt="Uploaded fire test" />
                       <DetectionOverlay detections={detections} frameSize={frameSize} />
                     </>
                   ) : (
-                    <span>Select an image to test fire detection.</span>
+                    <span className="absolute inset-0 grid place-items-center p-6 text-center text-[#d1d5db]">Select an image to test fire and smoke detection.</span>
                   )}
                 </div>
               </section>
@@ -358,22 +351,28 @@ const App = () => {
             )}
           </section>
 
-          <aside className="side-stack">
-            <section className="side-panel">
-              <h2>Alert Details</h2>
-              <div className="metric-row">
-                <span>Level</span>
-                <strong>{alertLevel.toUpperCase()}</strong>
+          <aside className="flex flex-col gap-4 max-[1080px]:grid max-[1080px]:grid-cols-[repeat(auto-fit,minmax(280px,1fr))] max-[760px]:grid-cols-1 max-[760px]:gap-3.5">
+            <section className="min-w-0 rounded-[var(--radius)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] p-[18px] transition-[border-color] duration-[180ms] max-[760px]:p-3.5">
+              <h2 className="m-0 font-sans text-[15px] font-semibold tracking-[-0.01em]">Hazard Status</h2>
+              <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] py-3 text-[13px] text-[var(--muted)]">
+                <span>Threat Level</span>
+                <strong className="font-mono font-medium text-[var(--text)]">{alertLevel.toUpperCase()}</strong>
               </div>
-              <div className="metric-row">
-                <span>Detections</span>
-                <strong>{detections.length}</strong>
+              <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] py-3 text-[13px] text-[var(--muted)]">
+                <span>Detected Objects</span>
+                <strong className="font-mono font-medium text-[var(--text)]">{detections.length}</strong>
               </div>
-              <div className="metric-row">
-                <span>Alert Boxes</span>
-                <strong>{detections.filter((d) => d.alert_eligible).length}</strong>
+              <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] py-3 text-[13px] text-[var(--muted)]">
+                <span>Confirmed Hazards</span>
+                <strong className="font-mono font-medium text-[var(--text)]">{detections.filter((d) => d.alert_eligible).length}</strong>
               </div>
             </section>
+
+            <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-muted)] p-3.5 text-xs leading-[1.5] text-[var(--muted)]">
+              <p className="m-0">
+                <strong className="text-[var(--text)]">Operational Notice:</strong> System is not 100% accurate. Glare, hot lighting, or sudden reflections may occasionally trigger a false alert. Always confirm hazards visually.
+              </p>
+            </div>
 
             <CameraHealth health={cameraHealth} onRefresh={fetchCameraHealth} />
 
