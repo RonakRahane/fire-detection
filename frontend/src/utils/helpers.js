@@ -8,7 +8,10 @@ export const consoleViewFromUrl = () => {
 };
 
 export const defaultApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
+  }
   return window.location.hostname.includes('ngrok') || window.location.port === '8000'
     ? window.location.origin
     : 'http://localhost:8000';

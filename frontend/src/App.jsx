@@ -25,7 +25,7 @@ const App = () => {
 
   const [isRunning, setIsRunning] = useState(false);
   const [intervalMs, setIntervalMs] = useState(500);
-  const [baseApi, setBaseApi] = useState(defaultApiUrl);
+  const [baseApi, setBaseApi] = useState(() => defaultApiUrl());
   const [response, setResponse] = useState('Camera standing by. Click Start Monitoring to begin.');
   const [detections, setDetections] = useState([]);
   const [frameSize, setFrameSize] = useState({ width: 960, height: 720 });
