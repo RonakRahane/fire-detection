@@ -10,13 +10,17 @@ node_modules/
 dist/
 **/dist/
 
+# Ignore large/fallback YOLO weights — only commit trained fire models
 *.pt
 **/*.pt
+!backend/models/fire_best.pt
+!backend/models/fire_indoor_yolo26s.pt
+!backend/yolov8n.pt
 
 runs/
 **/runs/
-events/media/
-**/events/media/
+events/
+**/events/
 
 D-FIRE/
 
