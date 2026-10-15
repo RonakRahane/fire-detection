@@ -1,20 +1,15 @@
-// Main application dashboard container wiring together webcam polling, API detection calls, theme state, and sidebar panels.
-// Coordinates live stream frame capturing, event modal rendering, and alert audio notifications.
-
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
-import { Home, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import './index.css';
 
 import DetectionOverlay from './components/DetectionOverlay';
-import StatusPill from './components/StatusPill';
-import HeroSection from './components/HeroSection';
 import CameraHealth from './components/CameraHealth';
 import EventViewer from './components/EventViewer';
 import EventHistory from './components/EventHistory';
 
-import { FIRE_CLASSES, formatPercent } from './utils/helpers';
+import { FIRE_CLASSES, consoleViewFromUrl, defaultApiUrl, formatPercent } from './utils/helpers';
 
 axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
@@ -25,16 +20,11 @@ const App = () => {
   const uploadInputRef = useRef(null);
 
   const [theme, setTheme] = useState('light');
-  const [activeView, setActiveView] = useState('live');
-  const [currentRoute, setCurrentRoute] = useState('landing');
+  const [activeView, setActiveView] = useState(() => consoleViewFromUrl() || 'live');
 
   const [isRunning, setIsRunning] = useState(false);
   const [intervalMs, setIntervalMs] = useState(500);
-  const [baseApi, setBaseApi] = useState(
-    window.location.hostname.includes('ngrok') || window.location.port === '8000'
-      ? window.location.origin
-      : 'http://localhost:8000'
-  );
+  const [baseApi, setBaseApi] = useState(defaultApiUrl);
   const [response, setResponse] = useState('Waiting for start...');
   const [detections, setDetections] = useState([]);
   const [frameSize, setFrameSize] = useState({ width: 960, height: 720 });
@@ -79,6 +69,32 @@ const App = () => {
       setEventsLoading(false);
     }
   }, [baseApi]);
+
+  const deleteEvent = useCallback(async (event) => {
+    if (!window.confirm('Delete this event with its snapshot and GIF? This cannot be undone.')) return;
+    try {
+      await axios.delete(`${baseApi}/events/${event.id}`);
+      setEvents((current) => current.filter((item) => item.id !== event.id));
+      setSelectedEvent((current) => (current?.id === event.id ? null : current));
+    } catch (error) {
+      console.error('Event delete error:', error);
+      window.alert('Could not delete the event. Refreshing the list.');
+      fetchEvents();
+    }
+  }, [baseApi, fetchEvents]);
+
+  const clearEvents = useCallback(async () => {
+    if (!window.confirm('Delete all events with their snapshots and GIFs? This cannot be undone.')) return;
+    try {
+      await axios.delete(`${baseApi}/events`);
+      setEvents([]);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('Event clear error:', error);
+      window.alert('Could not clear the event history. Refreshing the list.');
+      fetchEvents();
+    }
+  }, [baseApi, fetchEvents]);
 
   const fetchCameraHealth = useCallback(async () => {
     try {
@@ -125,7 +141,7 @@ const App = () => {
     }
 
     const rejectedFireCount = nextDetections.filter((d) => {
-      return FIRE_CLASSES.includes(d.class) && !d.alert_eligible;
+      return FIRE_CLASSES.includes(d.class) && !d.alert_eligible && !d.on_person;
     }).length;
 
     if (rejectedFireCount > 0) {
@@ -135,7 +151,7 @@ const App = () => {
     }
   }, [beep, fetchEvents]);
 
-  const detectFile = useCallback(async (file) => {
+  const detectFile = useCallback(async (file, { live = false } = {}) => {
     if (requestInFlightRef.current) return;
     requestInFlightRef.current = true;
 
@@ -145,13 +161,14 @@ const App = () => {
     try {
       const result = await axios.post(`${baseApi}/detect`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        params: live ? { live: true } : undefined,
       });
       applyDetectionResult(result.data);
     } catch (error) {
       console.error('Detection error:', error);
       setDetections([]);
       setAlertLevel('safe');
-      setResponse('Error connecting to backend.');
+      setResponse(error.response?.data?.detail || 'Error connecting to backend.');
     } finally {
       requestInFlightRef.current = false;
     }
@@ -165,7 +182,7 @@ const App = () => {
     const res = await fetch(imageSrc);
     const blob = await res.blob();
     const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
-    detectFile(file);
+    detectFile(file, { live: true });
   }, [detectFile]);
 
   const handleUpload = useCallback((event) => {
@@ -223,172 +240,162 @@ const App = () => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
   }, []);
 
-  const openConsole = useCallback((view = 'live') => {
-    setActiveView(view);
-    setCurrentRoute('console');
-  }, []);
-
-  const openLanding = useCallback(() => {
-    setCurrentRoute('landing');
-  }, []);
-
   return (
     <div className="app-shell">
-      {currentRoute === 'landing' ? (
-        <HeroSection
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onOpenConsole={() => openConsole('live')}
-          onOpenUpload={() => openConsole('upload')}
-        />
-      ) : (
-        <section className="console-section" id="console">
-          <nav className="console-nav">
-            <div className="console-nav-brand">
-              <span className="hero-brand-mark" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-              </span>
-              <span onClick={openLanding}>Fire Detection</span>
-            </div>
-            <div className="console-nav-actions">
-              <button className="icon-btn" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      <section className="console-section" id="console">
+        <nav className="console-nav">
+          <a className="console-nav-brand" href="/" title="Back to the FireCatch home page">
+            <span className="brand-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>FireCatch</span>
+          </a>
+          <div className="console-nav-actions">
+            <button className="icon-btn" onClick={toggleTheme} type="button" title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+        </nav>
+
+        <header className="console-header">
+          <div>
+            <span className="eyebrow">System Dashboard</span>
+            <h1>Monitoring Console</h1>
+            <p>{response}</p>
+          </div>
+        </header>
+
+        <main className="dashboard-grid">
+          <section className="monitor-panel">
+            <div className="view-tabs">
+              <button className={activeView === 'live' ? 'active' : ''} onClick={() => setActiveView('live')} type="button">
+                Live Camera
+              </button>
+              <button className={activeView === 'upload' ? 'active' : ''} onClick={() => setActiveView('upload')} type="button">
+                Image Test
+              </button>
+              <button className={activeView === 'history' ? 'active' : ''} onClick={() => setActiveView('history')} type="button">
+                History
               </button>
             </div>
-          </nav>
 
-          <header className="console-header">
-            <div>
-              <span className="eyebrow">System Dashboard</span>
-              <h1>Monitoring Console</h1>
-              <p>{response}</p>
-            </div>
-          </header>
-
-          <main className="dashboard-grid">
-            <section className="monitor-panel">
-              <div className="view-tabs">
-                <button className={activeView === 'live' ? 'active' : ''} onClick={() => setActiveView('live')} type="button">
-                  Live Camera
-                </button>
-                <button className={activeView === 'upload' ? 'active' : ''} onClick={() => setActiveView('upload')} type="button">
-                  Image Test
-                </button>
-                <button className={activeView === 'history' ? 'active' : ''} onClick={() => setActiveView('history')} type="button">
-                  History
-                </button>
-              </div>
-
-              {activeView === 'live' && (
-                <>
-                  <div className="video-container">
-                    <Webcam
-                      audio={false}
-                      ref={webcamRef}
-                      screenshotFormat="image/jpeg"
-                      minScreenshotWidth={640}
-                      minScreenshotHeight={480}
-                      videoConstraints={{
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'environment',
-                      }}
-                      className="webcam-feed"
-                      style={{ width: '100%', height: 'auto' }}
-                    />
-                    <DetectionOverlay detections={detections} frameSize={frameSize} />
-                  </div>
-
-                  <div className="control-row">
-                    <label>
-                      Base API
-                      <input type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
-                    </label>
-                    <label>
-                      Interval
-                      <select value={intervalMs} onChange={(e) => setIntervalMs(Number(e.target.value))}>
-                        <option value={100}>100ms</option>
-                        <option value={500}>500ms</option>
-                        <option value={1000}>1000ms</option>
-                        <option value={2000}>2000ms</option>
-                      </select>
-                    </label>
-                    <button className={`primary-btn ${isRunning ? 'stop' : ''}`} onClick={() => setIsRunning(!isRunning)} type="button">
-                      {isRunning ? 'Stop Monitoring' : 'Start Monitoring'}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {activeView === 'upload' && (
-                <section className="upload-panel">
-                  <div className="upload-actions">
-                    <input accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
-                    <button className="primary-btn" onClick={() => uploadInputRef.current?.click()} type="button">
-                      Choose Image
-                    </button>
-                  </div>
-                  <div className="upload-preview">
-                    {uploadPreview ? (
-                      <>
-                        <img src={uploadPreview} alt="Uploaded fire test" />
-                        <DetectionOverlay detections={detections} frameSize={frameSize} />
-                      </>
-                    ) : (
-                      <span>Select an image to test fire detection.</span>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {activeView === 'history' && (
-                <EventHistory
-                  events={events}
-                  baseApi={baseApi}
-                  onRefresh={fetchEvents}
-                  onSelectEvent={setSelectedEvent}
-                  isLoading={eventsLoading}
-                  updatedAt={eventsUpdatedAt}
-                />
-              )}
-            </section>
-
-            <aside className="side-stack">
-              <section className="side-panel">
-                <h2>Alert Details</h2>
-                <div className="metric-row">
-                  <span>Level</span>
-                  <strong>{alertLevel.toUpperCase()}</strong>
+            {activeView === 'live' && (
+              <>
+                <div className="video-container">
+                  <Webcam
+                    audio={false}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    minScreenshotWidth={640}
+                    minScreenshotHeight={480}
+                    videoConstraints={{
+                      width: { ideal: 1280 },
+                      height: { ideal: 720 },
+                      facingMode: 'environment',
+                    }}
+                    className="webcam-feed"
+                    style={{ width: '100%', height: 'auto' }}
+                  />
+                  <DetectionOverlay detections={detections} frameSize={frameSize} />
                 </div>
-                <div className="metric-row">
-                  <span>Detections</span>
-                  <strong>{detections.length}</strong>
+
+                <div className="control-row">
+                  <label>
+                    Base API
+                    <input type="text" value={baseApi} onChange={(e) => setBaseApi(e.target.value)} />
+                  </label>
+                  <label>
+                    Interval
+                    <select value={intervalMs} onChange={(e) => setIntervalMs(Number(e.target.value))}>
+                      <option value={100}>100ms</option>
+                      <option value={500}>500ms</option>
+                      <option value={1000}>1000ms</option>
+                      <option value={2000}>2000ms</option>
+                    </select>
+                  </label>
+                  <button className={`primary-btn ${isRunning ? 'stop' : ''}`} onClick={() => setIsRunning(!isRunning)} type="button">
+                    {isRunning ? 'Stop Monitoring' : 'Start Monitoring'}
+                  </button>
                 </div>
-                <div className="metric-row">
-                  <span>Alert Boxes</span>
-                  <strong>{detections.filter((d) => d.alert_eligible).length}</strong>
+              </>
+            )}
+
+            {activeView === 'upload' && (
+              <section className="upload-panel">
+                <div className="upload-actions">
+                  <input accept="image/*" onChange={handleUpload} ref={uploadInputRef} type="file" />
+                  <button className="primary-btn" onClick={() => uploadInputRef.current?.click()} type="button">
+                    Choose Image
+                  </button>
+                </div>
+                <div className="upload-preview">
+                  {uploadPreview ? (
+                    <>
+                      <img src={uploadPreview} alt="Uploaded fire test" />
+                      <DetectionOverlay detections={detections} frameSize={frameSize} />
+                    </>
+                  ) : (
+                    <span>Select an image to test fire detection.</span>
+                  )}
                 </div>
               </section>
+            )}
 
-              <CameraHealth health={cameraHealth} onRefresh={fetchCameraHealth} />
-
+            {activeView === 'history' && (
               <EventHistory
-                events={events.slice(0, 3)}
+                events={events}
                 baseApi={baseApi}
                 onRefresh={fetchEvents}
                 onSelectEvent={setSelectedEvent}
+                onDeleteEvent={deleteEvent}
+                onClearAll={clearEvents}
                 isLoading={eventsLoading}
                 updatedAt={eventsUpdatedAt}
               />
-            </aside>
-          </main>
-        </section>
-      )}
+            )}
+          </section>
 
-      <EventViewer event={selectedEvent} baseApi={baseApi} onClose={() => setSelectedEvent(null)} />
+          <aside className="side-stack">
+            <section className="side-panel">
+              <h2>Alert Details</h2>
+              <div className="metric-row">
+                <span>Level</span>
+                <strong>{alertLevel.toUpperCase()}</strong>
+              </div>
+              <div className="metric-row">
+                <span>Detections</span>
+                <strong>{detections.length}</strong>
+              </div>
+              <div className="metric-row">
+                <span>Alert Boxes</span>
+                <strong>{detections.filter((d) => d.alert_eligible).length}</strong>
+              </div>
+            </section>
+
+            <CameraHealth health={cameraHealth} onRefresh={fetchCameraHealth} />
+
+            <EventHistory
+              events={events.slice(0, 3)}
+              baseApi={baseApi}
+              onRefresh={fetchEvents}
+              onSelectEvent={setSelectedEvent}
+              onDeleteEvent={deleteEvent}
+              isLoading={eventsLoading}
+              updatedAt={eventsUpdatedAt}
+            />
+          </aside>
+        </main>
+      </section>
+
+      <EventViewer
+        event={selectedEvent}
+        baseApi={baseApi}
+        onClose={() => setSelectedEvent(null)}
+        onDelete={deleteEvent}
+      />
     </div>
   );
 };
